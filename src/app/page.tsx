@@ -22,74 +22,74 @@ export default async function Home() {
         <h1 className="anchor-title">words I return to.</h1>
       </header>
 
-      <AnchorWall columns={3} gap={20} />
+      <AnchorWall columns={3} gap={36} />
 
       <style>{`
         .anchor-page {
           min-height: 100vh;
           width: 100%;
           overflow-x: hidden;
-          background: #121212;
+          background: #111110;
           color: #ffffff;
-          padding: 78px 50px 80px;
+          padding: 54px 64px 96px;
           box-sizing: border-box;
           font-family: Figtree, Inter, sans-serif;
         }
 
         .anchor-header {
-          margin-bottom: 72px;
+          margin-bottom: 88px;
         }
 
         .anchor-badge {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 8px 9px;
-          border-radius: 6px;
-          border: 1px solid rgba(255, 75, 36, 0.16);
-          background: rgba(255, 75, 36, 0.04);
-          color: #ff4b24;
+          padding: 0;
+          border-radius: 0;
+          border: 0;
+          background: transparent;
+          color: rgba(255, 255, 255, 0.34);
           font-family: Figtree, Inter, sans-serif;
-          font-size: 13px;
+          font-size: 10px;
           font-weight: 600;
+          letter-spacing: 0.14em;
           line-height: 1;
-          margin-bottom: 16px;
+          margin-bottom: 12px;
         }
 
         .anchor-title {
           margin: 0;
           color: #ffffff;
           font-family: Figtree, Inter, sans-serif;
-          font-size: 36px;
-          font-weight: 500;
-          letter-spacing: -0.04em;
+          font-size: clamp(30px, 3vw, 42px);
+          font-weight: 450;
+          letter-spacing: -0.05em;
           line-height: 1.1;
         }
 
         @media (max-width: 1049px) {
           .anchor-page {
-            padding: 64px 36px 64px;
+            padding: 48px 36px 72px;
           }
 
           .anchor-header {
-            margin-bottom: 64px;
+            margin-bottom: 72px;
           }
         }
 
         @media (max-width: 699px) {
           .anchor-page {
             min-height: 100dvh;
-            padding: 32px 20px 40px;
+            padding: 36px 20px 64px;
           }
 
           .anchor-header {
-            margin-bottom: 88px;
+            margin-bottom: 76px;
           }
 
           .anchor-badge {
-            padding: 7px 8px;
-            font-size: 12px;
-            margin-bottom: 14px;
+            font-size: 9px;
+            margin-bottom: 11px;
           }
 
           .anchor-title {

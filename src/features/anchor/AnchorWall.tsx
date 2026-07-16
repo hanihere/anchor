@@ -306,12 +306,14 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
 
   useEffect(() => {
     if (returningId === null) {
-      setEditingId(null);
       return;
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setReturningId(null);
+      if (event.key === "Escape") {
+        setReturningId(null);
+        setEditingId(null);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
 
@@ -656,6 +658,30 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
     }
   }
 
+  async function updateCategory(anchor: Anchor, category: Category) {
+    if (anchor.category === category) return;
+
+    const updatedAt = new Date().toISOString();
+    setAnchors((current) =>
+      current.map((item) =>
+        item.id === anchor.id ? { ...item, category, updated_at: updatedAt } : item,
+      ),
+    );
+
+    try {
+      const supabase = requireSupabaseClient();
+      const { error } = await supabase
+        .from("anchors")
+        .update({ category, updated_at: updatedAt })
+        .eq("id", anchor.id)
+        .eq("user_id", anchor.user_id);
+      if (error) throw error;
+    } catch (e: unknown) {
+      setError(getErrorMessage(e, "Could not change this anchor's category."));
+      await fetchAnchors();
+    }
+  }
+
   function syncDraft() {
     const text = draftRef.current?.innerText.trim() || "";
     setDraftEmpty(text.length === 0);
@@ -847,24 +873,24 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
     >
       <style>{`
         @keyframes categoryLabelReveal {
-          0% { opacity: 0; transform: translate(-50%, 5px) scale(0.96); filter: blur(2px); }
-          100% { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); }
+          0% { opacity: 0; transform: translate(-50%, 4px); filter: blur(2px); }
+          100% { opacity: 1; transform: translate(-50%, 0); filter: blur(0); }
         }
 
         @keyframes draftControlsReveal {
-          0% { opacity: 0; transform: translateY(5px) scale(0.98); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
+          0% { opacity: 0; transform: translateY(4px); }
+          100% { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes anchorReturnReveal {
           0% {
             opacity: 0;
-            transform: translateY(14px) scale(0.985);
+            transform: translateY(8px);
             filter: blur(3px);
           }
           100% {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0);
             filter: blur(0);
           }
         }
@@ -1002,12 +1028,6 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
               style={{
                 ...styles.wallAllCategoryDot,
                 opacity: categoryFilter === "all" ? 1 : 0.42,
-                transform:
-                  hoveredCategory === "all"
-                    ? "scale(1.28)"
-                    : categoryFilter === "all"
-                      ? "scale(1.12)"
-                      : "scale(1)",
               }}
             />
           </button>
@@ -1043,12 +1063,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                     ...styles.wallDockDot,
                     background: category.color,
                     opacity: active ? 1 : hovered ? 0.9 : 0.52,
-                    transform: hovered
-                      ? "scale(1.28)"
-                      : active
-                        ? "scale(1.12)"
-                        : "scale(1)",
-                    boxShadow: active ? `0 0 10px ${category.color}44` : "none",
+                    boxShadow: active ? `0 0 0 2px ${category.color}33` : "none",
                   }}
                 />
               </button>
@@ -1118,7 +1133,10 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                 ...styles.focusOverlay,
                 padding: isMobile ? 20 : 32,
               }}
-              onClick={() => setReturningId(null)}
+              onClick={() => {
+                setReturningId(null);
+                setEditingId(null);
+              }}
             >
               <div
                 key={returningId}
@@ -1238,11 +1256,6 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
         }}
       >
         <div style={styles.draftSurface}>
-          {draftEmpty && (
-            <div style={styles.draftPlaceholder}>
-              Write something worth returning to...
-            </div>
-          )}
           <div
             ref={draftRef}
             contentEditable
@@ -1380,8 +1393,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                       ...styles.categoryDotButton,
                       borderColor:
                         draftCategory === c.value ? c.color : "transparent",
-                      transform:
-                        draftCategory === c.value ? "scale(1.08)" : "scale(1)",
+                      opacity: draftCategory === c.value ? 1 : 0.64,
                     }}
                   >
                     {hoveredDraftCategory === c.value && !isMobile && (
@@ -1473,6 +1485,19 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                 const color =
                   COLORS[anchor.category || "default"] || COLORS.default;
                 const editing = editingId === anchor.id;
+                const textLength = (anchor.content?.text || "").trim().length;
+                const isQuote =
+                  Boolean(anchor.attribution) || /^["“‘]/.test(anchor.content?.text || "");
+                const isBrief = textLength <= 56;
+                const isLong = textLength > 220;
+                const quoteSize = isBrief
+                  ? 28
+                  : textLength <= 120
+                    ? 21
+                    : isLong
+                      ? 15
+                      : 17;
+                const cardPadding = isBrief ? "24px 25px" : "22px 24px";
 
                 return (
                   <div
@@ -1492,8 +1517,9 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                       }
 
                       if (!editing) {
-                        setReturningId(anchor.id);
-                        setSelectedId(null);
+                        setReturningId(null);
+                        setSelectedId(anchor.id);
+                        setEditingId(anchor.id);
                       }
                     }}
                     onTouchStart={(e) => {
@@ -1539,18 +1565,18 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                     style={{
                       ...styles.item,
                       opacity: dragId === anchor.id ? 0.35 : 1,
+                      filter:
+                        !isMobile &&
+                        hoveredAnchorId !== null &&
+                        hoveredAnchorId !== anchor.id
+                          ? "blur(1.4px)"
+                          : "blur(0)",
                       transform:
                         overId === anchor.id && dragId !== anchor.id
                           ? "translateY(3px)"
-                          : "none",
+                          : `translateX(${(anchor.id % 3) * 2}px)`,
                     }}
                   >
-                    <div
-                      style={{
-                        ...styles.bar,
-                        background: color,
-                      }}
-                    />
                     <div
                       className="anchor-wall-actions"
                       onClick={(e) => e.stopPropagation()}
@@ -1592,10 +1618,28 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                         </div>
                       )}
                     </div>
-                    <div style={styles.card}>
+                    <div
+                      style={{
+                        ...styles.card,
+                        minHeight: isBrief ? 104 : textLength > 140 ? 156 : 124,
+                        padding: cardPadding,
+                        borderColor: editing ? `${color}66` : "rgba(255,255,255,0.075)",
+                      }}
+                    >
                       <div
                         contentEditable={editing}
                         suppressContentEditableWarning
+                        ref={(element) => {
+                          if (
+                            element &&
+                            editing &&
+                            document.activeElement !== element
+                          ) {
+                            requestAnimationFrame(() => {
+                              if (element.isConnected) element.focus();
+                            });
+                          }
+                        }}
                         onDoubleClick={(e) => {
                           e.stopPropagation();
                           setEditingId(anchor.id);
@@ -1626,7 +1670,9 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                         }}
                         style={{
                           ...styles.quote,
-                          outline: editing ? `1px solid ${color}` : "none",
+                          fontSize: quoteSize,
+                          fontStyle: isQuote ? "italic" : "normal",
+                          outline: "none",
                         }}
                         dangerouslySetInnerHTML={{
                           __html:
@@ -1634,6 +1680,24 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                             escapeHtml(anchor.content?.text || ""),
                         }}
                       />
+                      {editing && (
+                        <div style={styles.editPalette} onMouseDown={(e) => e.preventDefault()}>
+                          {CATEGORIES.map((category) => (
+                            <button
+                              key={category.value}
+                              type="button"
+                              aria-label={`Set category to ${category.label}`}
+                              title={category.label}
+                              onClick={() => void updateCategory(anchor, category.value)}
+                              style={{
+                                ...styles.editPaletteDot,
+                                background: category.color,
+                                opacity: (anchor.category || "default") === category.value ? 1 : 0.48,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      )}
                       {anchor.attribution && (
                         <div style={styles.attribution}>— {anchor.attribution}</div>
                       )}
@@ -1750,14 +1814,12 @@ const styles: Record<string, AnchorCSSProperties> = {
     transform: "translateX(-50%)",
     display: "flex",
     alignItems: "center",
-    gap: 0,
-    padding: "7px 8px",
-    border: "1px solid rgba(255,255,255,0.07)",
+    gap: 6,
+    padding: 0,
+    border: 0,
     borderRadius: 999,
-    background: "rgba(18,18,18,0.9)",
-    boxShadow: "0 16px 45px rgba(0,0,0,0.34)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
+    background: "transparent",
+    boxShadow: "none",
     transition: "bottom 180ms ease",
   },
   allCategoryDot: {
@@ -1770,7 +1832,7 @@ const styles: Record<string, AnchorCSSProperties> = {
   wallDockDotButton: {
     position: "relative",
     width: 18,
-    height: 24,
+    height: 18,
     flex: "0 0 auto",
     padding: 0,
     border: 0,
@@ -1781,20 +1843,20 @@ const styles: Record<string, AnchorCSSProperties> = {
     background: "transparent",
     cursor: "pointer",
     overflow: "visible",
-    transition: "width 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+    transition: "width 180ms ease",
   },
   wallDockDot: {
-    width: 7,
-    height: 7,
+    width: 10,
+    height: 10,
     borderRadius: 999,
-    transition: "transform 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease, box-shadow 180ms ease",
+    transition: "opacity 180ms ease, box-shadow 180ms ease",
   },
   wallAllCategoryDot: {
-    width: 7,
-    height: 7,
+    width: 10,
+    height: 10,
     borderRadius: 999,
     background: "rgba(255,255,255,0.72)",
-    transition: "transform 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease",
+    transition: "opacity 180ms ease",
   },
   categoryHoverLabel: {
     position: "absolute",
@@ -1886,15 +1948,15 @@ const styles: Record<string, AnchorCSSProperties> = {
     width: "100%",
     paddingLeft: 18,
     boxSizing: "border-box",
-    animation: "anchorReturnReveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both",
+    animation: "anchorReturnReveal 220ms ease both",
     transformOrigin: "center center",
   },
   wallActions: {
     position: "absolute",
-    top: -8,
-    right: 8,
+    top: 10,
+    right: 10,
     opacity: 0,
-    transition: "opacity 150ms ease",
+    transition: "opacity 180ms ease",
   },
   wallMenuButton: {
     position: "relative",
@@ -1917,9 +1979,9 @@ const styles: Record<string, AnchorCSSProperties> = {
   focusCard: {
     width: "100%",
     padding: "18px 24px",
-    borderRadius: 18,
+    borderRadius: 10,
     boxSizing: "border-box",
-    background: "linear-gradient(90deg, rgb(37,37,37) 0%, transparent 100%)",
+    background: "#1a1a18",
     
   },
   focusQuote: {
@@ -1956,7 +2018,7 @@ const styles: Record<string, AnchorCSSProperties> = {
   root: {
     position: "relative",
     width: "100%",
-    paddingBottom: 104,
+    paddingBottom: 112,
     boxSizing: "border-box",
     fontFamily: "Figtree, Inter, sans-serif",
   },
@@ -1980,12 +2042,12 @@ const styles: Record<string, AnchorCSSProperties> = {
     position: "relative",
     display: "inline-block",
     width: "100%",
-    paddingLeft: 14,
+    paddingLeft: 0,
     boxSizing: "border-box",
     breakInside: "avoid",
     WebkitColumnBreakInside: "avoid",
     verticalAlign: "top",
-    transition: "opacity 160ms ease, transform 160ms ease",
+    transition: "opacity 180ms ease, transform 180ms ease, filter 180ms ease",
     cursor: "grab",
   },
   deleteButton: {
@@ -2019,20 +2081,21 @@ const styles: Record<string, AnchorCSSProperties> = {
   },
   card: {
     width: "100%",
-    padding: "10px 16px",
-    borderRadius: 16,
-    background:
-      "linear-gradient(90deg, rgba(37,37,37,0.96) 0%, rgba(27,27,27,0.82) 72%, rgba(22,22,22,0.56) 82%, rgba(17,17,17,0) 100%)",
+    padding: "22px 24px",
+    border: "1px solid rgba(255,255,255,0.075)",
+    borderRadius: 10,
+    background: "#1a1a18",
+    boxShadow: "0 3px 12px rgba(0,0,0,0.12)",
     boxSizing: "border-box",
   },
   quote: {
     whiteSpace: "pre-wrap",
-    color: "#fff",
+    color: "rgba(255,255,255,0.92)",
     fontFamily: "Figtree, sans-serif",
-    fontWeight: 500,
-    fontSize: 16,
-    letterSpacing: "-0.02em",
-    lineHeight: "1.4em",
+    fontWeight: 450,
+    fontSize: 17,
+    letterSpacing: "-0.032em",
+    lineHeight: "1.42em",
     borderRadius: 6,
   },
   draftItem: {
@@ -2114,14 +2177,31 @@ const styles: Record<string, AnchorCSSProperties> = {
     background: "rgba(255,255,255,.09)",
   },
   attribution: {
-    marginTop: 10,
-    color: "rgba(255,255,255,0.48)",
+    marginTop: 14,
+    color: "rgba(255,255,255,0.38)",
     fontFamily: "Figtree, sans-serif",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 500,
     fontStyle: "italic",
-    letterSpacing: "-0.01em",
+    letterSpacing: "0.01em",
     lineHeight: "1.35em",
+  },
+  editPalette: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 18,
+    opacity: 0.82,
+    animation: "draftControlsReveal 180ms ease both",
+  },
+  editPaletteDot: {
+    width: 10,
+    height: 10,
+    padding: 0,
+    border: "1px solid rgba(255,255,255,0.22)",
+    borderRadius: 999,
+    cursor: "pointer",
+    transition: "opacity 180ms ease",
   },
   focusAttribution: {
     marginTop: 14,
