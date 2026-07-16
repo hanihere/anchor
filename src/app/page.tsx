@@ -22,7 +22,7 @@ export default async function Home() {
         <h1 className="anchor-title">words I return to.</h1>
       </header>
 
-      <AnchorWall columns={3} gap={36} />
+      <AnchorWall columns={3} gap={24} />
 
       <style>{`
         .anchor-page {

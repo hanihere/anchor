@@ -118,8 +118,6 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
   const [stillMattersMarkedId, setStillMattersMarkedId] = useState<number | null>(null);
   const lastReturnedIdRef = useRef<number | null>(null);
   const draftRef = useRef<HTMLDivElement>(null);
-  const draftShellRef = useRef<HTMLDivElement>(null);
-  const [draftSlotHeight, setDraftSlotHeight] = useState(48);
   const savedRangeRef = useRef<Range | null>(null);
   const [draftEmpty, setDraftEmpty] = useState(true);
   const [draftFocused, setDraftFocused] = useState(false);
@@ -141,6 +139,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [wallMenuId, setWallMenuId] = useState<number | null>(null);
   const [hoveredAnchorId, setHoveredAnchorId] = useState<number | null>(null);
+  const [cardRowSpans, setCardRowSpans] = useState<Record<number, number>>({});
   const [archivedAnchor, setArchivedAnchor] = useState<Anchor | null>(null);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [archivedAnchors, setArchivedAnchors] = useState<Anchor[]>([]);
@@ -150,6 +149,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
   const longPressTriggeredRef = useRef(false);
+  const cardRefs = useRef(new Map<number, HTMLDivElement>());
 
   const responsiveColumns =
     viewportWidth === null
@@ -267,6 +267,32 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
       return `${text} ${category}`.toLowerCase().includes(normalizedSearchQuery);
     });
   }, [ordered, normalizedSearchQuery, categoryFilter]);
+
+  useEffect(() => {
+    if (cardRefs.current.size === 0) return;
+
+    const observer = new ResizeObserver((entries) => {
+      setCardRowSpans((current) => {
+        let changed = false;
+        const next = { ...current };
+
+        for (const entry of entries) {
+          const id = Number((entry.target as HTMLElement).dataset.anchorId);
+          if (!Number.isFinite(id)) continue;
+          const span = Math.ceil((entry.contentRect.height + 20) / 2);
+          if (next[id] !== span) {
+            next[id] = span;
+            changed = true;
+          }
+        }
+
+        return changed ? next : current;
+      });
+    });
+
+    cardRefs.current.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [visibleAnchors]);
 
   useEffect(() => {
     const onSearchShortcut = (event: KeyboardEvent) => {
@@ -686,36 +712,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
     const text = draftRef.current?.innerText.trim() || "";
     setDraftEmpty(text.length === 0);
     if (text) setDraftMessage("");
-
-    requestAnimationFrame(() => {
-      const shell = draftShellRef.current;
-      if (!shell) return;
-      setDraftSlotHeight(
-        Math.max(48, Math.ceil(shell.getBoundingClientRect().height)),
-      );
-    });
   }
-
-  React.useEffect(() => {
-    const shell = draftShellRef.current;
-    if (!shell) return;
-
-    const measure = () => {
-      setDraftSlotHeight(
-        Math.max(48, Math.ceil(shell.getBoundingClientRect().height)),
-      );
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(shell);
-    window.addEventListener("resize", measure);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
 
   function updateToolbar() {
     const editor = draftRef.current;
@@ -1001,7 +998,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
         </div>
       )}
 
-      {!archiveOpen && returningId === null && selectedId === null && (
+      {!archiveOpen && returningId === null && selectedId === null && !draftFocused && (
         <div
           style={{
             ...styles.categoryDock,
@@ -1246,16 +1243,16 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
         })()}
 
       <div
-        ref={draftShellRef}
         hidden={normalizedSearchQuery.length > 0}
         style={{
           ...styles.draftOverlay,
-          width: `calc((100% - ${
-            Math.max(0, responsiveColumns - 1) * gap
-          }px) / ${responsiveColumns})`,
+          width: isMobile ? "calc(100vw - 40px)" : "min(540px, calc(100vw - 80px))",
         }}
       >
         <div style={styles.draftSurface}>
+          {draftEmpty && (
+            <div style={styles.draftPlaceholder}>Return another thought...</div>
+          )}
           <div
             ref={draftRef}
             contentEditable
@@ -1277,9 +1274,13 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
               }, 0)
             }
             onKeyDown={(e) => {
-              // Desktop: Enter saves; Shift + Enter creates a new line.
-              // Mobile: Enter stays available for normal multiline writing.
-              if (e.key === "Enter" && !e.shiftKey && !isMobile) {
+              // The composer remains a natural writing surface: Enter adds a line,
+              // while Cmd/Ctrl + Enter places the thought on the wall.
+              if (
+                e.key === "Enter" &&
+                (e.metaKey || e.ctrlKey) &&
+                !isMobile
+              ) {
                 e.preventDefault();
                 void createDraftAnchor();
                 return;
@@ -1297,6 +1298,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
               data-anchor-draft-controls
               style={{
                 ...styles.floatingToolbar,
+                display: "none",
                 left: toolbar.left,
                 top: toolbar.top,
               }}
@@ -1371,7 +1373,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
             </div>
           )}
 
-          {!draftEmpty && draftFocused && (
+          {draftFocused && (
             <div
               data-anchor-draft-controls
               style={styles.draftActions}
@@ -1430,7 +1432,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
               </button>
               <span style={styles.draftMessage}>{draftMessage}</span>
               <button
-                title={isMobile ? "Save anchor" : "Save anchor · Enter"}
+                title={isMobile ? "Save anchor" : "Save anchor · Cmd/Ctrl + Enter"}
                 aria-label="Save anchor"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => void createDraftAnchor()}
@@ -1452,7 +1454,10 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
           ...styles.columns,
           display: "grid",
           gridTemplateColumns: `repeat(${responsiveColumns}, minmax(0, 1fr))`,
-          gap,
+          columnGap: gap,
+          rowGap: 0,
+          gridAutoRows: "2px",
+          gridAutoFlow: "row dense",
           alignItems: "start",
         }}
       >
@@ -1460,26 +1465,13 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
           <div
             key={columnIndex}
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap,
-              minWidth: 0,
+              display: "contents",
             }}
           >
-            {columnIndex === 0 && !normalizedSearchQuery && (
-              <div
-                aria-hidden="true"
-                style={{
-                  ...styles.draftSpacer,
-                  height: draftSlotHeight,
-                }}
-              />
-            )}
-
             {visibleAnchors
               .filter(
                 (_, anchorIndex) =>
-                  (anchorIndex + 1) % responsiveColumns === columnIndex,
+                  anchorIndex % responsiveColumns === columnIndex,
               )
               .map((anchor) => {
                 const color =
@@ -1490,6 +1482,15 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                   Boolean(anchor.attribution) || /^["“‘]/.test(anchor.content?.text || "");
                 const isBrief = textLength <= 56;
                 const isLong = textLength > 220;
+                const columnSpan =
+                  responsiveColumns >= 3 && (isQuote || textLength > 150) ? 2 : 1;
+                const estimatedRows = Math.ceil(
+                  ((isBrief ? 124 : 96) +
+                    Math.max(2, Math.ceil(textLength / (columnSpan * 25))) *
+                      (isBrief ? 30 : 26) +
+                    (anchor.attribution ? 24 : 0)) /
+                    2,
+                );
                 const quoteSize = isBrief
                   ? 28
                   : textLength <= 120
@@ -1503,6 +1504,14 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                   <div
                     key={anchor.id}
                     className="anchor-wall-card"
+                    data-anchor-id={anchor.id}
+                    ref={(element) => {
+                      if (element) {
+                        cardRefs.current.set(anchor.id, element);
+                      } else {
+                        cardRefs.current.delete(anchor.id);
+                      }
+                    }}
                     onMouseEnter={() => setHoveredAnchorId(anchor.id)}
                     onMouseLeave={() => {
                       if (wallMenuId !== anchor.id) setHoveredAnchorId(null);
@@ -1569,14 +1578,18 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                         !isMobile &&
                         hoveredAnchorId !== null &&
                         hoveredAnchorId !== anchor.id
-                          ? "blur(1.4px)"
+                          ? "blur(0.8px)"
                           : "blur(0)",
                       transform:
                         overId === anchor.id && dragId !== anchor.id
                           ? "translateY(3px)"
-                          : `translateX(${(anchor.id % 3) * 2}px)`,
+                          : "none",
+                      gridColumn: `span ${columnSpan}`,
+                      gridRow: `span ${cardRowSpans[anchor.id] ?? estimatedRows}`,
+                      order: visibleAnchors.findIndex((item) => item.id === anchor.id),
                     }}
                   >
+                    <div style={{ ...styles.bar, background: color }} />
                     <div
                       className="anchor-wall-actions"
                       onClick={(e) => e.stopPropagation()}
@@ -2024,10 +2037,11 @@ const styles: Record<string, AnchorCSSProperties> = {
   },
   columns: { width: "100%" },
   draftOverlay: {
-    position: "absolute",
-    zIndex: 30,
-    left: 0,
-    top: 0,
+    position: "fixed",
+    zIndex: 95,
+    left: "50%",
+    bottom: 64,
+    transform: "translateX(-50%)",
     boxSizing: "border-box",
   },
   draftSpacer: {
@@ -2042,7 +2056,7 @@ const styles: Record<string, AnchorCSSProperties> = {
     position: "relative",
     display: "inline-block",
     width: "100%",
-    paddingLeft: 0,
+    paddingLeft: 12,
     boxSizing: "border-box",
     breakInside: "avoid",
     WebkitColumnBreakInside: "avoid",
@@ -2110,17 +2124,19 @@ const styles: Record<string, AnchorCSSProperties> = {
   draftSurface: {
     position: "relative",
     width: "100%",
-    minHeight: 48,
+    minHeight: 46,
+    padding: "0 14px",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
     overflow: "visible",
     boxSizing: "border-box",
   },
   draftPlaceholder: {
     position: "absolute",
-    left: 4,
-    top: 10,
-    color: "#565656",
-    fontSize: 18,
-    lineHeight: 1.6,
+    left: 14,
+    top: 13,
+    color: "rgba(255,255,255,0.32)",
+    fontSize: 14,
+    lineHeight: 1.4,
     pointerEvents: "none",
     userSelect: "none",
   },
@@ -2128,14 +2144,14 @@ const styles: Record<string, AnchorCSSProperties> = {
     position: "relative",
     zIndex: 1,
     width: "100%",
-    minHeight: 48,
-    padding: "10px 4px",
+    minHeight: 46,
+    padding: "12px 0",
     outline: "none",
     border: "none",
     background: "transparent",
     color: "#F5F5F5",
-    fontSize: 18,
-    lineHeight: 1.6,
+    fontSize: 14,
+    lineHeight: 1.45,
     whiteSpace: "pre-wrap",
     overflowWrap: "anywhere",
     boxSizing: "border-box",
@@ -2216,20 +2232,21 @@ const styles: Record<string, AnchorCSSProperties> = {
     fontStyle: "italic",
   },
   attributionFieldWrap: {
-    position: "absolute",
-    zIndex: 24,
-    left: 4,
-    bottom: "calc(100% + 58px)",
+    position: "relative",
+    zIndex: 1,
+    left: "auto",
+    bottom: "auto",
     display: "flex",
     alignItems: "center",
     gap: 7,
     minWidth: 190,
-    padding: "7px 10px",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 9,
-    background: "rgba(20,20,20,0.96)",
-    boxShadow: "0 10px 28px rgba(0,0,0,.28)",
-    animation: "draftControlsReveal 180ms cubic-bezier(0.22, 1, 0.36, 1) both",
+    marginTop: 8,
+    padding: "6px 0",
+    border: 0,
+    borderRadius: 0,
+    background: "transparent",
+    boxShadow: "none",
+    animation: "none",
   },
   attributionDash: {
     color: "rgba(255,255,255,0.38)",
@@ -2263,21 +2280,22 @@ const styles: Record<string, AnchorCSSProperties> = {
     color: "rgba(255,255,255,0.82)",
   },
   draftActions: {
-    position: "absolute",
-    zIndex: 20,
-    left: 4,
+    position: "relative",
+    zIndex: 1,
+    left: "auto",
     right: "auto",
-    bottom: "calc(100% + 10px)",
+    bottom: "auto",
     display: "inline-flex",
     alignItems: "center",
-    gap: 4,
-    padding: "4px 5px",
-    border: "1px solid rgba(255,255,255,.07)",
-    borderRadius: 10,
-    background: "rgba(20,20,20,.94)",
-    boxShadow: "0 10px 28px rgba(0,0,0,.28)",
-    animation: "draftControlsReveal 180ms cubic-bezier(0.22, 1, 0.36, 1) both",
-    transformOrigin: "left bottom",
+    gap: 10,
+    marginTop: 8,
+    padding: "9px 0 11px",
+    borderTop: "1px solid rgba(255,255,255,.06)",
+    borderRadius: 0,
+    background: "transparent",
+    boxShadow: "none",
+    animation: "draftControlsReveal 180ms ease both",
+    transformOrigin: "left top",
     width: "max-content",
     maxWidth: "calc(100% - 8px)",
     boxSizing: "border-box",
