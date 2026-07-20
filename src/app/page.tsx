@@ -19,7 +19,7 @@ export default async function Home() {
       <header className="anchor-header">
         <div className="anchor-badge">ANCHOR</div>
 
-        <h1 className="anchor-title">words I return to.</h1>
+        <h1 className="anchor-title">Return to what matters.</h1>
       </header>
 
       <AnchorWall columns={3} gap={24} />
@@ -37,8 +37,19 @@ export default async function Home() {
         }
 
         .anchor-header {
-          margin-bottom: 88px;
-        }
+  position: sticky;
+  top: 54px;
+
+  z-index: 300;
+
+  margin-bottom: 88px;
+
+  pointer-events: none;
+}
+  .anchor-badge,
+.anchor-title {
+    pointer-events: auto;
+}
 
         .anchor-badge {
           display: inline-flex;

@@ -134,6 +134,7 @@ const [newCategoryColor, setNewCategoryColor] =
   const [draftFocused, setDraftFocused] = useState(false);
   const [draftCategory, setDraftCategory] = useState<Category>("default");
   const [hoveredDraftCategory, setHoveredDraftCategory] = useState<Category | null>(null);
+  const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
   const [draftSaving, setDraftSaving] = useState(false);
   const [draftMessage, setDraftMessage] = useState("");
   const [draftAttribution, setDraftAttribution] = useState("");
@@ -875,6 +876,7 @@ useEffect(() => {
       savedRangeRef.current = null;
       setDraftEmpty(true);
       setDraftCategory("default");
+      setCategoryPickerOpen(false);
       setDraftAttribution("");
       setAttributionOpen(false);
       setToolbar(null);
@@ -914,6 +916,58 @@ useEffect(() => {
   if (error && anchors.length === 0) {
     return <div style={{ ...styles.state, ...style }}>{error}</div>;
   }
+
+  const renderCategoryDock = (
+  selected: Category | "all",
+  onSelect: (category: Category | "all") => void,
+  hovered: Category | "all" | null,
+  setHovered: (category: Category | "all" | null) => void,
+) => (
+  <div style={styles.categoryDock}>
+    <button
+      type="button"
+      onClick={() => onSelect("all")}
+      onMouseEnter={() => setHovered("all")}
+      onMouseLeave={() => setHovered(null)}
+      style={styles.wallDockDotButton}
+    >
+      <span
+        style={{
+          ...styles.wallAllCategoryDot,
+          opacity: selected === "all" ? 1 : 0.45,
+        }}
+      />
+      {hovered === "all" && (
+        <span style={styles.categoryHoverLabel}>ALL</span>
+      )}
+    </button>
+
+    {categories.map((category) => (
+      <button
+        key={category.value}
+        type="button"
+        onClick={() => onSelect(category.value)}
+        onMouseEnter={() => setHovered(category.value)}
+        onMouseLeave={() => setHovered(null)}
+        style={styles.wallDockDotButton}
+      >
+        <span
+          style={{
+            ...styles.wallDockDot,
+            background: category.color,
+            opacity: selected === category.value ? 1 : 0.45,
+          }}
+        />
+
+        {hovered === category.value && (
+          <span style={styles.categoryHoverLabel}>
+            {category.label.toUpperCase()}
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
+);
 
   return (
     <div
@@ -1009,7 +1063,8 @@ useEffect(() => {
       <div
         style={{
           ...styles.headerActions,
-          top: isMobile ? -88 : -126,
+          top: isMobile ? 20 : 36,
+right: isMobile ? 20 : 64,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -1102,84 +1157,7 @@ useEffect(() => {
         </div>
       )}
 
-      {!archiveOpen && returningId === null && selectedId === null && !draftFocused && (
-        <div
-          style={{
-            ...styles.categoryDock,
-            bottom: archivedAnchor ? (isMobile ? 88 : 78) : (isMobile ? 20 : 24),
-          }}
-          onClick={(e) => e.stopPropagation()}
-          aria-label="Filter anchors by category"
-        >
-          <button
-            type="button"
-            aria-label="Show all anchors"
-            onClick={() => setCategoryFilter("all")}
-            onMouseEnter={() => setHoveredCategory("all")}
-            onMouseLeave={() => setHoveredCategory(null)}
-            style={{
-              ...styles.wallDockDotButton,
-              width: hoveredCategory === "all" ? 28 : 18,
-            }}
-          >
-            {hoveredCategory === "all" && !isMobile && (
-              <span style={styles.categoryHoverLabel}>ALL</span>
-            )}
-            <span
-              style={{
-                ...styles.wallAllCategoryDot,
-                opacity: categoryFilter === "all" ? 1 : 0.42,
-              }}
-            />
-          </button>
-
-          {categories.map((category) => {
-            const active = categoryFilter === category.value;
-            const hovered = hoveredCategory === category.value;
-
-            return (
-              <button
-                key={category.value}
-                type="button"
-                aria-label={`Show ${category.label} anchors`}
-                onClick={() =>
-                  setCategoryFilter((current) =>
-                    current === category.value ? "all" : category.value,
-                  )
-                }
-                onMouseEnter={() => setHoveredCategory(category.value)}
-                onMouseLeave={() => setHoveredCategory(null)}
-                style={{
-                  ...styles.wallDockDotButton,
-                  width: hovered ? 28 : 18,
-                }}
-              >
-                {hovered && !isMobile && (
-                  <span style={styles.categoryHoverLabel}>
-                    {category.label.toUpperCase()}
-                  </span>
-                )}
-                <span
-                  style={{
-                    ...styles.wallDockDot,
-                    background: category.color,
-                    opacity: active ? 1 : hovered ? 0.9 : 0.52,
-                    boxShadow: active ? `0 0 0 2px ${category.color}33` : "none",
-                  }}
-                />
-              </button>
-            );
-          })}
-          <button
-  type="button"
-  aria-label="Create category"
-  onClick={() => setCreateCategoryOpen(true)}
-  style={styles.addCategoryButton}
->
-  +
-</button>
-        </div>
-      )}
+      
 
       {archiveOpen && (
         <div style={styles.archiveOverlay} onClick={() => setArchiveOpen(false)}>
@@ -1209,7 +1187,7 @@ useEffect(() => {
                           dangerouslySetInnerHTML={{ __html: anchor.content?.html || escapeHtml(anchor.content?.text || "") }}
                         />
                         {anchor.attribution && (
-                          <div style={styles.archiveAttribution}>— {anchor.attribution}</div>
+                          <div style={styles.archiveAttribution}># {anchor.attribution}</div>
                         )}
                         <div style={styles.archiveItemActions}>
                           <button type="button" onClick={() => void restoreArchivedAnchor(anchor)} style={styles.archiveRestore}>Restore</button>
@@ -1330,7 +1308,7 @@ useEffect(() => {
                     />
                     {returnedAnchor.attribution && (
                       <div style={{ ...styles.attribution, ...styles.focusAttribution }}>
-                        — {returnedAnchor.attribution}
+                        # {returnedAnchor.attribution}
                       </div>
                     )}
                   </div>
@@ -1371,7 +1349,7 @@ useEffect(() => {
     minHeight: draftFocused || !draftEmpty ? 120 : 56,
 }}>
           {draftEmpty && (
-            <div style={styles.draftPlaceholder}>Return another thought...</div>
+            <div style={styles.draftPlaceholder}>What do you want to return to?</div>
           )}
           <div
             ref={draftRef}
@@ -1407,6 +1385,7 @@ useEffect(() => {
               }
               if (e.key === "Escape") {
                 setToolbar(null);
+                setCategoryPickerOpen(false);
                 if (draftEmpty) e.currentTarget.blur();
               }
             }}
@@ -1470,7 +1449,7 @@ useEffect(() => {
               style={styles.attributionFieldWrap}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              <span style={styles.attributionDash}>—</span>
+              <span style={styles.attributionDash}>#</span>
               <input
                 ref={attributionRef}
                 value={draftAttribution}
@@ -1498,39 +1477,66 @@ useEffect(() => {
               style={styles.draftActions}
               onMouseDown={(e) => e.preventDefault()}
             >
-              <div style={styles.categoryDots}>
-                {categories.map((c) => (
-                  <button
-                    key={c.value}
-                    title={c.label}
-                    onMouseEnter={() => setHoveredDraftCategory(c.value)}
-                    onMouseLeave={() => setHoveredDraftCategory(null)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setDraftCategory(c.value);
-                      requestAnimationFrame(() => draftRef.current?.focus());
-                    }}
-                    style={{
-                      ...styles.categoryDotButton,
-                      borderColor:
-                        draftCategory === c.value ? c.color : "transparent",
-                      opacity: draftCategory === c.value ? 1 : 0.64,
-                    }}
-                  >
-                    {hoveredDraftCategory === c.value && !isMobile && (
-                      <span style={styles.draftCategoryHoverLabel}>
-                        {c.label.toUpperCase()}
-                      </span>
-                    )}
-                    <span
-                      style={{
-                        ...styles.categoryDot,
-                        background: c.color,
-                      }}
-                    />
-                  </button>
-                ))}
-              </div>
+              {categoryPickerOpen ? (
+  <div style={styles.categoryDots}>
+    {categories.map((c) => (
+      <button
+        key={c.value}
+        title={c.label}
+        onMouseEnter={() => setHoveredDraftCategory(c.value)}
+        onMouseLeave={() => setHoveredDraftCategory(null)}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => {
+          setDraftCategory(c.value);
+          setCategoryPickerOpen(false);
+
+          requestAnimationFrame(() => draftRef.current?.focus());
+        }}
+        style={{
+          ...styles.categoryDotButton,
+          borderColor:
+            draftCategory === c.value ? c.color : "transparent",
+          opacity: draftCategory === c.value ? 1 : 0.64,
+        }}
+      >
+        {hoveredDraftCategory === c.value && !isMobile && (
+          <span style={styles.draftCategoryHoverLabel}>
+            {c.label.toUpperCase()}
+          </span>
+        )}
+
+        <span
+          style={{
+            ...styles.categoryDot,
+            background: c.color,
+          }}
+        />
+      </button>
+    ))}
+  </div>
+) : (
+  <button
+    type="button"
+    onMouseDown={(e) => e.preventDefault()}
+    onClick={() => setCategoryPickerOpen(true)}
+    style={styles.categoryPicker}
+  >
+    <span
+      style={{
+        ...styles.categoryPickerDot,
+        background:
+          categories.find((c) => c.value === draftCategory)?.color,
+      }}
+    />
+
+    <span style={styles.categoryPickerLabel}>
+  {categories
+    .find((c) => c.value === draftCategory)
+    ?.label.toLowerCase()}
+</span>
+
+  </button>
+)}
               <button
                 type="button"
                 title="Add attribution"
@@ -1547,7 +1553,7 @@ useEffect(() => {
                     : {}),
                 }}
               >
-                —
+                # 
               </button>
               <span style={styles.draftMessage}>{draftMessage}</span>
               <button
@@ -1567,6 +1573,15 @@ useEffect(() => {
           )}
         </div>
       </div>
+{!archiveOpen &&
+  returningId === null &&
+  selectedId === null &&
+  renderCategoryDock(
+    categoryFilter,
+    setCategoryFilter,
+    hoveredCategory,
+    setHoveredCategory,
+  )}
 
       <div
         style={{
@@ -1710,6 +1725,7 @@ const columnSpan = 1;
                       order: visibleAnchors.findIndex((item) => item.id === anchor.id),
                     }}
                   >
+                    
                     <div
   style={{
     ...styles.bar,
@@ -1889,13 +1905,17 @@ const styles: Record<string, AnchorCSSProperties> = {
     paddingBottom: 92,
   },
   headerActions: {
-    position: "absolute",
-    right: 0,
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    zIndex: 60,
-  },
+  position: "fixed",
+
+  top: 36,
+  right: 64,
+
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+
+  zIndex: 500,
+},
   profileButton: {
   width: 32,
   height: 32,
@@ -2013,25 +2033,16 @@ logoutButton: {
     fontSize: 13,
   },
   categoryDock: {
-    position: "fixed",
-    zIndex: 90,
-    left: "50%",
-    transform: "translateX(-50%)",
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    padding: 0,
-    border: 0,
-    borderRadius: 999,
-    background: "transparent",
-    boxShadow: "none",
-    transition: "bottom 180ms ease",
-  },
+  display: "flex",
+  alignItems: "center",
+  gap: 2,
+  marginBottom: 42,
+},
   allCategoryDot: {
     width: 7,
     height: 7,
     borderRadius: 999,
-    background: "rgba(255,255,255,0.72)",
+    background: "rgb(255, 255, 255)",
     transition: "transform 180ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease",
   },
   wallDockDotButton: {
@@ -2051,16 +2062,16 @@ logoutButton: {
     transition: "width 180ms ease",
   },
   wallDockDot: {
-    width: 10,
-    height: 10,
+    width: 7,
+    height: 7,
     borderRadius: 999,
     transition: "opacity 180ms ease, box-shadow 180ms ease",
   },
   wallAllCategoryDot: {
-    width: 10,
-    height: 10,
+    width: 7,
+    height: 7,
     borderRadius: 999,
-    background: "rgba(255,255,255,0.72)",
+    background: "rgb(255, 255, 255)",
     transition: "opacity 180ms ease",
   },
   categoryHoverLabel: {
@@ -2347,7 +2358,7 @@ background:
   background: "rgba(28,28,28,.96)",
   border: "1px solid rgba(255,255,255,.05)",
   boxShadow: "0 10px 28px rgba(0,0,0,.22)",
-  overflow: "hidden",
+  overflow: "visible",
   boxSizing: "border-box",
   transition:
     "min-height .28s cubic-bezier(.22,1,.36,1), box-shadow .25s ease",
@@ -2355,7 +2366,7 @@ background:
   draftPlaceholder: {
   position: "absolute",
   left: 18,
-  top: 20,
+  top: 16,
   color: "rgba(255,255,255,.28)",
   fontFamily: "Figtree, sans-serif",
   fontSize: 18,
@@ -2513,7 +2524,7 @@ background:
     bottom: "auto",
     display: "inline-flex",
     alignItems: "center",
-    gap: 10,
+    gap: 14,
     marginTop: 8,
     padding: "9px 0 11px",
     borderTop: "1px solid rgba(255,255,255,.06)",
@@ -2522,7 +2533,7 @@ background:
     boxShadow: "none",
     animation: "draftControlsReveal 180ms ease both",
     transformOrigin: "left top",
-    width: "max-content",
+    width: "100%",
     maxWidth: "calc(100% - 8px)",
     boxSizing: "border-box",
   },
@@ -2531,6 +2542,7 @@ background:
     left: "50%",
     bottom: "calc(100% + 10px)",
     transform: "translateX(-50%)",
+    zIndex: 500,
     padding: "5px 7px",
     border: "1px solid rgba(255,255,255,0.07)",
     borderRadius: 6,
@@ -2558,8 +2570,40 @@ background:
     alignItems: "center",
     gap: 2,
   },
+  categoryPicker: {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+
+  padding: "2px 4px",
+
+  border: 0,
+  background: "transparent",
+
+  color: "rgba(255,255,255,.72)",
+
+  fontFamily: "Figtree, sans-serif",
+  fontSize: 12,
+  fontWeight: 500,
+
+  cursor: "pointer",
+},
+
+categoryPickerDot: {
+  width: 7,
+  height: 7,
+  borderRadius: 999,
+},
+
+categoryPickerLabel: {
+  color: "rgba(255,255,255,.58)",
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: ".01em",
+},
   categoryDotButton: {
     position: "relative",
+    zIndex: 500,
     width: 25,
     height: 25,
     display: "flex",
@@ -2588,6 +2632,7 @@ background:
     height: 30,
     display: "flex",
     alignItems: "center",
+    marginLeft:"auto",
     justifyContent: "center",
     padding: 0,
     border: 0,
