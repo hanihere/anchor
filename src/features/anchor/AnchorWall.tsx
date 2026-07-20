@@ -70,7 +70,7 @@ type Category =
   | "spiritual"
   | "trading";
 
-const CATEGORIES: { value: Category; label: string; color: string }[] = [
+const DEFAULT_CATEGORIES: { value: Category; label: string; color: string }[] = [
   { value: "default", label: "Anchor", color: COLORS.default },
   { value: "personal", label: "Personal", color: COLORS.personal },
   { value: "thought", label: "Thought", color: COLORS.thought },
@@ -108,6 +108,16 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
   const [anchors, setAnchors] = useState<Anchor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [categories, setCategories] =
+  useState(DEFAULT_CATEGORIES);
+  const [createCategoryOpen, setCreateCategoryOpen] = useState(false);
+
+const [newCategoryName, setNewCategoryName] = useState("");
+
+const [newCategoryColor, setNewCategoryColor] =
+  useState("#8B5CF6");
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [dragId, setDragId] = useState<number | null>(null);
   const [overId, setOverId] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -117,6 +127,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
   const [markingStillMatters, setMarkingStillMatters] = useState(false);
   const [stillMattersMarkedId, setStillMattersMarkedId] = useState<number | null>(null);
   const lastReturnedIdRef = useRef<number | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const [draftEmpty, setDraftEmpty] = useState(true);
@@ -146,6 +157,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [viewportWidth, setViewportWidth] = useState<number | null>(null);
+  const [wallReady, setWallReady] = useState(false);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
   const longPressTriggeredRef = useRef(false);
@@ -207,16 +219,28 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
     window.addEventListener("resize", updateViewport);
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
+  useEffect(() => {
+  const timer = window.setTimeout(() => {
+    setWallReady(true);
+  }, 100);
+
+  return () => window.clearTimeout(timer);
+}, []);
+
 
   const fetchAnchors = useCallback(async () => {
     try {
       const supabase = requireSupabaseClient();
       const {
-        data: { user },
-        error: ue,
-      } = await supabase.auth.getUser();
-      if (ue) throw ue;
-      if (!user) {
+  data: { user: currentUser },
+  error: ue,
+} = await supabase.auth.getUser();
+
+if (ue) throw ue;
+
+setUser(currentUser);
+
+if (!currentUser) {
         setError("Sign in to see your anchors.");
         setAnchors([]);
         return;
@@ -224,7 +248,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
       const { data, error } = await supabase
         .from("anchors")
         .select("id,created_at,content,category,position,updated_at,last_returned_at,return_count,still_matters_count,last_still_matters_at,attribution,archived_at,user_id")
-        .eq("user_id", user.id)
+        .eq("user_id", currentUser.id)
         .is("archived_at", null)
         .order("position", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: true });
@@ -260,7 +284,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
 
       const text = anchor.content?.text || "";
       const category =
-        CATEGORIES.find((item) => item.value === anchor.category)?.label ||
+        categories.find((item) => item.value === anchor.category)?.label ||
         anchor.category ||
         "";
 
@@ -354,6 +378,42 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
       document.documentElement.style.overflow = htmlOverflow;
     };
   }, [returningId]);
+  useEffect(() => {
+  function handleClickOutside(event: MouseEvent) {
+    if (
+      accountMenuRef.current &&
+      !accountMenuRef.current.contains(event.target as Node)
+    ) {
+      setAccountMenuOpen(false);
+    }
+  }
+
+  if (accountMenuOpen) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [accountMenuOpen]);
+useEffect(() => {
+  function handleClickOutside(event: MouseEvent) {
+    if (
+      accountMenuRef.current &&
+      !accountMenuRef.current.contains(event.target as Node)
+    ) {
+      setAccountMenuOpen(false);
+    }
+  }
+
+  if (accountMenuOpen) {
+    document.addEventListener("mousedown", handleClickOutside);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, [accountMenuOpen]);
 
   async function returnToOne() {
     if (ordered.length === 0) return;
@@ -986,6 +1046,50 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
         >
           Return to one ↗
         </button>
+        <div
+  ref={accountMenuRef}
+  style={{ position: "relative" }}
+>
+  <button
+    type="button"
+    onClick={() => setAccountMenuOpen((v) => !v)}
+    style={styles.profileButton}
+  >
+    {user?.user_metadata?.avatar_url ? (
+      <img
+        src={user.user_metadata.avatar_url}
+        alt="Profile"
+        style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: "50%",
+          objectFit: "cover",
+        }}
+      />
+    ) : (
+      user?.email?.charAt(0).toUpperCase()
+    )}
+  </button>
+
+  {accountMenuOpen && (
+    <div style={styles.accountMenu}>
+      <div style={styles.accountEmail}>
+        {user?.email}
+      </div>
+
+      <button
+        style={styles.logoutButton}
+        onClick={async () => {
+          const supabase = requireSupabaseClient();
+          await supabase.auth.signOut();
+          window.location.reload();
+        }}
+      >
+        Logout
+      </button>
+    </div>
+  )}
+</div>
       </div>
 
       {(error || saving) && (
@@ -1029,7 +1133,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
             />
           </button>
 
-          {CATEGORIES.map((category) => {
+          {categories.map((category) => {
             const active = categoryFilter === category.value;
             const hovered = hoveredCategory === category.value;
 
@@ -1066,6 +1170,14 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
               </button>
             );
           })}
+          <button
+  type="button"
+  aria-label="Create category"
+  onClick={() => setCreateCategoryOpen(true)}
+  style={styles.addCategoryButton}
+>
+  +
+</button>
         </div>
       )}
 
@@ -1152,7 +1264,12 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                     paddingLeft: isMobile ? 14 : 18,
                   }}
                 >
-                  <div style={{ ...styles.bar, background: color }} />
+                  <div
+  style={{
+    ...styles.bar,
+    background: color,
+  }}
+/>
 
                   <div
                     style={{
@@ -1249,7 +1366,10 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
           width: isMobile ? "calc(100vw - 40px)" : "min(540px, calc(100vw - 80px))",
         }}
       >
-        <div style={styles.draftSurface}>
+        <div style={{
+    ...styles.draftSurface,
+    minHeight: draftFocused || !draftEmpty ? 120 : 56,
+}}>
           {draftEmpty && (
             <div style={styles.draftPlaceholder}>Return another thought...</div>
           )}
@@ -1298,7 +1418,6 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
               data-anchor-draft-controls
               style={{
                 ...styles.floatingToolbar,
-                display: "none",
                 left: toolbar.left,
                 top: toolbar.top,
               }}
@@ -1380,7 +1499,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
               onMouseDown={(e) => e.preventDefault()}
             >
               <div style={styles.categoryDots}>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <button
                     key={c.value}
                     title={c.label}
@@ -1480,26 +1599,14 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                 const textLength = (anchor.content?.text || "").trim().length;
                 const isQuote =
                   Boolean(anchor.attribution) || /^["“‘]/.test(anchor.content?.text || "");
-                const isBrief = textLength <= 56;
-                const isLong = textLength > 220;
-                const columnSpan =
-                  responsiveColumns >= 3 && (isQuote || textLength > 150) ? 2 : 1;
-                const estimatedRows = Math.ceil(
-                  ((isBrief ? 124 : 96) +
-                    Math.max(2, Math.ceil(textLength / (columnSpan * 25))) *
-                      (isBrief ? 30 : 26) +
-                    (anchor.attribution ? 24 : 0)) /
-                    2,
-                );
-                const quoteSize = isBrief
-                  ? 28
-                  : textLength <= 120
-                    ? 21
-                    : isLong
-                      ? 15
-                      : 17;
-                const cardPadding = isBrief ? "24px 25px" : "22px 24px";
+                const quoteSize = 18;
+const cardPadding = "16px";
 
+// Only used until ResizeObserver measures the real height
+const estimatedRows = 80;
+
+// Keep every card one column for now
+const columnSpan = 1;
                 return (
                   <div
                     key={anchor.id}
@@ -1572,24 +1679,47 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                       setOverId(null);
                     }}
                     style={{
-                      ...styles.item,
-                      opacity: dragId === anchor.id ? 0.35 : 1,
-                      filter:
-                        !isMobile &&
-                        hoveredAnchorId !== null &&
-                        hoveredAnchorId !== anchor.id
-                          ? "blur(0.8px)"
-                          : "blur(0)",
-                      transform:
-                        overId === anchor.id && dragId !== anchor.id
-                          ? "translateY(3px)"
-                          : "none",
+  ...styles.item,
+
+  opacity: !wallReady
+    ? 0
+    : dragId === anchor.id
+    ? 0.35
+    : !isMobile &&
+      hoveredAnchorId !== null &&
+      hoveredAnchorId !== anchor.id
+    ? 0.35
+    : 1,
+
+  filter:
+    !isMobile &&
+    hoveredAnchorId !== null &&
+    hoveredAnchorId !== anchor.id
+      ? "grayscale(.15)"
+      : "none",
+
+  transform: !wallReady
+    ? "translateY(18px)"
+    : overId === anchor.id && dragId !== anchor.id
+    ? "translateY(3px)"
+    : "translateY(0)",
+
+
                       gridColumn: `span ${columnSpan}`,
                       gridRow: `span ${cardRowSpans[anchor.id] ?? estimatedRows}`,
                       order: visibleAnchors.findIndex((item) => item.id === anchor.id),
                     }}
                   >
-                    <div style={{ ...styles.bar, background: color }} />
+                    <div
+  style={{
+    ...styles.bar,
+    background: color,
+    boxShadow:
+  hoveredAnchorId === anchor.id
+    ? `0 0 20px ${color}55`
+    : "none",
+  }}
+/>
                     <div
                       className="anchor-wall-actions"
                       onClick={(e) => e.stopPropagation()}
@@ -1606,6 +1736,12 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                           (!isMobile && hoveredAnchorId === anchor.id)
                             ? "auto"
                             : "none",
+                             zIndex:
+      wallMenuId === anchor.id
+        ? 100
+        : hoveredAnchorId === anchor.id
+        ? 50
+        : 1,
                       }}
                     >
                       {!isMobile && (
@@ -1634,9 +1770,23 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                     <div
                       style={{
                         ...styles.card,
-                        minHeight: isBrief ? 104 : textLength > 140 ? 156 : 124,
+                        position: "relative",
+zIndex: 1,
+                       
                         padding: cardPadding,
-                        borderColor: editing ? `${color}66` : "rgba(255,255,255,0.075)",
+                        borderColor: editing
+  ? `${color}88`
+  : "rgba(255,255,255,.055)",
+  transform:
+  hoveredAnchorId === anchor.id
+    ? "translateY(-2px)"
+    : "translateY(0)",
+
+
+boxShadow:
+  hoveredAnchorId === anchor.id
+    ? "0 18px 42px rgba(0,0,0,.22)"
+    : "0 12px 28px rgba(0,0,0,.16)",
                       }}
                     >
                       <div
@@ -1685,6 +1835,8 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                           ...styles.quote,
                           fontSize: quoteSize,
                           fontStyle: isQuote ? "italic" : "normal",
+
+fontWeight: 500,
                           outline: "none",
                         }}
                         dangerouslySetInnerHTML={{
@@ -1695,7 +1847,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
                       />
                       {editing && (
                         <div style={styles.editPalette} onMouseDown={(e) => e.preventDefault()}>
-                          {CATEGORIES.map((category) => (
+                          {categories.map((category) => (
                             <button
                               key={category.value}
                               type="button"
@@ -1724,7 +1876,7 @@ export default function AnchorWall({ columns = 3, gap = 20, style }: Props) {
           <div style={styles.noResults}>
             {normalizedSearchQuery
               ? `No anchors found for “${searchQuery.trim()}”.`
-              : `No ${CATEGORIES.find((item) => item.value === categoryFilter)?.label || ""} anchors yet.`}
+              : `No ${categories.find((item) => item.value === categoryFilter)?.label || ""} anchors yet.`}
           </div>
         )}
       </div>
@@ -1744,6 +1896,46 @@ const styles: Record<string, AnchorCSSProperties> = {
     gap: 12,
     zIndex: 60,
   },
+  profileButton: {
+  width: 32,
+  height: 32,
+  border: "1px solid rgba(255,255,255,.08)",
+  borderRadius: "50%",
+  overflow: "hidden",
+  background: "rgba(20,20,20,.9)",
+  cursor: "pointer",
+  color: "#fff",
+  padding: 0,
+},
+
+accountMenu: {
+  position: "absolute",
+  top: 38,
+  right: 0,
+  width: 220,
+  padding: 12,
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,.08)",
+  background: "rgba(20,20,20,.98)",
+  boxShadow: "0 20px 40px rgba(0,0,0,.4)",
+},
+
+accountEmail: {
+  color: "rgba(255,255,255,.65)",
+  fontSize: 12,
+  marginBottom: 10,
+  wordBreak: "break-word",
+},
+
+logoutButton: {
+  width: "100%",
+  height: 36,
+  border: 0,
+  borderRadius: 8,
+  background: "rgba(255,255,255,.06)",
+  color: "#fff",
+  cursor: "pointer",
+},
   searchTrigger: {
     width: 30,
     height: 30,
@@ -1923,7 +2115,7 @@ const styles: Record<string, AnchorCSSProperties> = {
   archivePanel: {
     maxHeight: "min(720px, calc(100vh - 64px))", display: "flex",
     flexDirection: "column", overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.08)", borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.08)", borderRadius: 24,
     background: "rgba(18,18,18,0.97)", boxShadow: "0 30px 90px rgba(0,0,0,0.5)",
   },
   archiveHeader: {
@@ -1968,6 +2160,7 @@ const styles: Record<string, AnchorCSSProperties> = {
     position: "absolute",
     top: 10,
     right: 10,
+    zIndex: 200,
     opacity: 0,
     transition: "opacity 180ms ease",
   },
@@ -1986,17 +2179,18 @@ const styles: Record<string, AnchorCSSProperties> = {
     letterSpacing: "0.08em",
     cursor: "pointer",
   },
-  wallMenu: { position: "absolute", zIndex: 100, isolation: "isolate", top: 29, right: 0, width: 112, padding: 5, display: "flex", flexDirection: "column", gap: 2, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, background: "rgba(20,20,20,0.96)", boxShadow: "0 18px 50px rgba(0,0,0,0.42)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" },
+  wallMenu: { position: "absolute", zIndex: 9999, isolation: "isolate", top: 29, right: 0, width: 112, padding: 5, display: "flex", flexDirection: "column", gap: 2, border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, background: "rgba(20,20,20,0.96)", boxShadow: "0 18px 50px rgba(0,0,0,0.42)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" },
   wallMenuItem: { width: "100%", padding: "8px 10px", border: 0, borderRadius: 7, background: "transparent", color: "rgba(255,255,255,0.72)", fontFamily: "Figtree, sans-serif", fontSize: 12, fontWeight: 500, textAlign: "left", cursor: "pointer" },
   wallDeleteItem: { color: "rgba(255,110,95,0.82)" },
+  
   focusCard: {
-    width: "100%",
-    padding: "18px 24px",
-    borderRadius: 10,
-    boxSizing: "border-box",
-    background: "#1a1a18",
-    
-  },
+  width: "100%",
+  padding: "18px 24px",
+  borderRadius: 16,
+  boxSizing: "border-box",
+background:
+  "linear-gradient(90deg, rgba(33,33,31,0.96) 0%, rgba(27,27,25,0.01) 100%)",
+},
   focusQuote: {
     width: "100%",
     fontSize: 22,
@@ -2061,7 +2255,8 @@ const styles: Record<string, AnchorCSSProperties> = {
     breakInside: "avoid",
     WebkitColumnBreakInside: "avoid",
     verticalAlign: "top",
-    transition: "opacity 180ms ease, transform 180ms ease, filter 180ms ease",
+    transition:
+"opacity .28s ease, transform .28s cubic-bezier(.22,1,.36,1), filter .3s ease",
     cursor: "grab",
   },
   deleteButton: {
@@ -2085,33 +2280,55 @@ const styles: Record<string, AnchorCSSProperties> = {
     padding: 0,
   },
   bar: {
-    position: "absolute",
-    left: 0,
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: 4,
-    height: "89.6%",
-    borderRadius: 999,
-  },
+  position: "absolute",
+
+  left: 0,
+
+  top: "50%",
+
+  transform: "translateY(-50%)",
+
+  width: 4,
+
+  height: "80%",
+
+  borderRadius: 999,
+
+  opacity: .92,
+},
   card: {
-    width: "100%",
-    padding: "22px 24px",
-    border: "1px solid rgba(255,255,255,0.075)",
-    borderRadius: 10,
-    background: "#1a1a18",
-    boxShadow: "0 3px 12px rgba(0,0,0,0.12)",
-    boxSizing: "border-box",
-  },
+  width: "100%",
+  padding: "26px",
+  borderRadius: 16,
+
+  background:
+  "linear-gradient(90deg, rgba(33,33,31,0.96) 0%, rgba(27,27,25,0.01) 100%)",
+
+
+  boxSizing: "border-box",
+
+  transition:
+    "background .28s ease, border-color .25s ease, transform .25s ease, box-shadow .25s ease",
+},
   quote: {
-    whiteSpace: "pre-wrap",
-    color: "rgba(255,255,255,0.92)",
-    fontFamily: "Figtree, sans-serif",
-    fontWeight: 450,
-    fontSize: 17,
-    letterSpacing: "-0.032em",
-    lineHeight: "1.42em",
-    borderRadius: 6,
-  },
+  whiteSpace: "pre-wrap",
+
+  color: "rgba(255,255,255,.94)",
+
+  fontFamily: "Figtree, sans-serif",
+
+  fontWeight: 500,
+
+  fontSize: 18,
+
+  letterSpacing: "-0.025em",
+
+  lineHeight: "1.58",
+
+  outline: "none",
+
+  wordBreak: "break-word",
+},
   draftItem: {
     position: "relative",
     display: "inline-block",
@@ -2122,70 +2339,78 @@ const styles: Record<string, AnchorCSSProperties> = {
     boxSizing: "border-box",
   },
   draftSurface: {
-    position: "relative",
-    width: "100%",
-    minHeight: 46,
-    padding: "0 14px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    overflow: "visible",
-    boxSizing: "border-box",
-  },
+  position: "relative",
+  width: "100%",
+  minHeight: 56,
+  padding: "14px 18px",
+  borderRadius: 18,
+  background: "rgba(28,28,28,.96)",
+  border: "1px solid rgba(255,255,255,.05)",
+  boxShadow: "0 10px 28px rgba(0,0,0,.22)",
+  overflow: "hidden",
+  boxSizing: "border-box",
+  transition:
+    "min-height .28s cubic-bezier(.22,1,.36,1), box-shadow .25s ease",
+},
   draftPlaceholder: {
-    position: "absolute",
-    left: 14,
-    top: 13,
-    color: "rgba(255,255,255,0.32)",
-    fontSize: 14,
-    lineHeight: 1.4,
-    pointerEvents: "none",
-    userSelect: "none",
-  },
+  position: "absolute",
+  left: 18,
+  top: 20,
+  color: "rgba(255,255,255,.28)",
+  fontFamily: "Figtree, sans-serif",
+  fontSize: 18,
+  fontWeight: 400,
+  letterSpacing: "-0.02em",
+  lineHeight: 1.6,
+  pointerEvents: "none",
+  userSelect: "none",
+},
   draftEditor: {
-    position: "relative",
-    zIndex: 1,
-    width: "100%",
-    minHeight: 46,
-    padding: "12px 0",
-    outline: "none",
-    border: "none",
-    background: "transparent",
-    color: "#F5F5F5",
-    fontSize: 14,
-    lineHeight: 1.45,
-    whiteSpace: "pre-wrap",
-    overflowWrap: "anywhere",
-    boxSizing: "border-box",
-    cursor: "text",
-    caretColor: "#FFFFFF",
-    transition: "color 160ms ease",
-  },
+  position: "relative",
+  zIndex: 1,
+  width: "100%",
+   minHeight: 24,
+    maxHeight: "none",
+  outline: "none",
+  border: "none",
+  background: "transparent",
+  color: "#F5F5F5",
+  fontFamily: "Figtree, sans-serif",
+  fontSize: 18,
+  fontWeight: 400,
+  lineHeight: 1.6,
+  letterSpacing: "-0.02em",
+  whiteSpace: "pre-wrap",
+  overflowWrap: "break-word",
+  boxSizing: "border-box",
+  cursor: "text",
+  caretColor: "#FFFFFF",
+},
   floatingToolbar: {
-    position: "absolute",
-    zIndex: 50,
-    display: "flex",
-    alignItems: "center",
-    gap: 2,
-    padding: 5,
-    border: "1px solid rgba(255,255,255,.09)",
-    borderRadius: 10,
-    background: "#191919",
-    boxShadow: "0 12px 32px rgba(0,0,0,.4)",
-    width: "max-content",
-    maxWidth: "calc(100% - 8px)",
-    boxSizing: "border-box",
-    transform: "translate(-50%, -100%)",
-    animation: "draftControlsReveal 160ms cubic-bezier(0.22, 1, 0.36, 1) both",
-  },
+  position: "absolute",
+  zIndex: 100,
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "6px",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,.08)",
+  background: "rgba(20,20,20,.98)",
+  backdropFilter: "blur(18px)",
+  boxShadow: "0 18px 40px rgba(0,0,0,.45)",
+  transform: "translate(-50%, -110%)",
+},
   tool: {
-    width: 30,
-    height: 30,
-    border: 0,
-    borderRadius: 6,
-    background: "transparent",
-    color: "#B7B7B7",
-    fontSize: 13,
-    cursor: "pointer",
-  },
+  width: 34,
+  height: 34,
+  border: 0,
+  borderRadius: 8,
+  background: "transparent",
+  color: "#D0D0D0",
+  fontSize: 14,
+  cursor: "pointer",
+  transition: "all .18s ease",
+},
   divider: {
     width: 1,
     height: 17,
@@ -2193,13 +2418,14 @@ const styles: Record<string, AnchorCSSProperties> = {
     background: "rgba(255,255,255,.09)",
   },
   attribution: {
-    marginTop: 14,
-    color: "rgba(255,255,255,0.38)",
+    marginTop: 22,
+    color: "rgba(255,255,255,.34)",
     fontFamily: "Figtree, sans-serif",
     fontSize: 12,
     fontWeight: 500,
     fontStyle: "italic",
-    letterSpacing: "0.01em",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
     lineHeight: "1.35em",
   },
   editPalette: {
