@@ -1,0 +1,29 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="anchorGradient" x1="128" y1="32" x2="128" y2="224" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"></stop>
+      <stop offset="1" stop-color="#D8D8D8"></stop>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <circle cx="128" cy="128" r="112" fill="#111111"></circle>
+
+  <!-- Anchor Mark -->
+  <path d="M128 58
+       C118 58 110 66 110 76
+       C110 84 115 91 122 94
+       V152
+       L86 118
+       C82 114 75 114 71 118
+       C67 122 67 129 71 133
+       L121 181
+       C125 185 131 185 135 181
+       L185 133
+       C189 129 189 122 185 118
+       C181 114 174 114 170 118
+       L134 152
+       V94
+       C141 91 146 84 146 76
+       C146 66 138 58 128 58Z" fill="url(#anchorGradient)"></path>
+</svg>

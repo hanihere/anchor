@@ -2118,7 +2118,7 @@ logoutButton: {
     cursor: "pointer",
   },
   archiveOverlay: {
-    position: "fixed", zIndex: 150, inset: 0, display: "flex",
+    position: "fixed", zIndex: 300, inset: 0, display: "flex",
     alignItems: "center", justifyContent: "center", padding: 32,
     boxSizing: "border-box", background: "rgba(8,8,8,0.56)",
     backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",

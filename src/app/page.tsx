@@ -40,7 +40,7 @@ export default async function Home() {
   position: sticky;
   top: 54px;
 
-  z-index: 300;
+  z-index: 200;
 
   margin-bottom: 88px;
 
