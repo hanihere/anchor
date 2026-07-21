@@ -49,12 +49,6 @@ Designed around one simple belief:
 </p>
 > A quiet place for the thoughts you never want to lose.
 
-### Anchor Wall
-
-<p align="center">
-  <img src="./screenshots/wall.png" width="100%" />
-</p>
-
 ### Writing
 
 <p align="center">
@@ -64,7 +58,13 @@ Designed around one simple belief:
 ### Reading
 
 <p align="center">
-  <img src="./screenshots/view.png" width="100%" />
+  <img src="./screenshots/wall.png" width="100%" />
+</p>
+
+### Login
+
+<p align="center">
+  <img src="./screenshots/login.png" width="100%" />
 </p>
 
 ## Demo
