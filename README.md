@@ -30,13 +30,48 @@ Anchor was created to give those moments a home.
 
 Rather than helping us create more, Anchor helps us preserve what already matters.
 
-It is a calm AI companion designed for intentional reflection—a quiet place to capture meaningful thoughts, organize them with intention, and return to them whenever life becomes noisy.
+It is a quiet place for the thoughts you never want to lose. A calm space to capture meaningful reflections, organize them with intention, and return to them whenever life becomes noisy.
 
 Built with **Next.js**, **Supabase**, **GPT-5.6**, and **Codex**.
 
 Designed around one simple belief:
 
 > **Technology should help us return—not distract us.**
+
+---
+
+## Preview
+
+### Homepage
+
+<p align="center">
+  <img src="./screenshots/home.png" width="100%" />
+</p>
+> A quiet place for the thoughts you never want to lose.
+
+### Anchor Wall
+
+<p align="center">
+  <img src="./screenshots/wall.png" width="100%" />
+</p>
+
+### Writing
+
+<p align="center">
+  <img src="./screenshots/write.png" width="100%" />
+</p>
+
+### Reading
+
+<p align="center">
+  <img src="./screenshots/view.png" width="100%" />
+</p>
+
+## Demo
+
+🎥 Watch the demo
+
+https://youtu.be/k8eqqdRCol0
 
 ---
 
@@ -106,8 +141,8 @@ Anchor is a personal sanctuary for meaningful thoughts.
 
 Current capabilities include:
 
-- AI-assisted writing
-- Thought organization with categories
+- Capture meaningful thoughts
+- Organize anchors with categories
 - Secure Google authentication
 - Responsive minimalist interface
 - Beautiful writing experience
@@ -117,54 +152,85 @@ Rather than becoming another productivity system, Anchor focuses on preserving m
 
 ---
 
-# Building with GPT-5.6 & Codex
+## Current MVP
 
-Anchor was developed through an ongoing collaboration between a human creator, GPT-5.6, and Codex.
+Anchor is intentionally focused on a small, polished core experience.
 
-Rather than using AI only to generate code, GPT-5.6 and Codex became part of the product development process—from early product thinking to production deployment.
+The current release includes:
 
-Throughout development they helped accelerate:
+- Google Authentication
+- Creating and saving Anchors
+- Category organization
+- Browsing previous reflections
+- Responsive web experience
 
-## Product
+Some ideas described in the roadmap are intentionally not part of the current MVP.
 
-- Product vision refinement
-- UX writing
-- Product positioning
-- Information architecture
-- User flow design
-- Feature prioritization
-- Product philosophy
+---
 
-Many ideas explored during development were intentionally removed because they didn't support Anchor's core purpose.
+Building with OpenAI
 
-## Engineering
+Anchor was built through continuous collaboration with OpenAI tools during Build Week.
 
-Codex accelerated implementation by assisting with:
+Rather than treating AI as something that simply generated code, I used it as a collaborative partner throughout product design, engineering, documentation, and iteration.
 
-- Next.js development
-- React component implementation
-- Supabase authentication
-- TypeScript improvements
-- UI refinement
-- Debugging
-- Refactoring
-- Production readiness
+How I collaborated with Codex
 
-Every implementation was reviewed, modified, and integrated by the project author before shipping.
+Codex became my engineering partner throughout development.
 
-## Design
+I used it to:
 
-GPT-5.6 contributed across:
+Bootstrap parts of the Next.js application
+Configure Supabase authentication and project structure
+Implement React components
+Explore different UI implementations
+Debug implementation issues
+Refactor existing code
+Improve TypeScript quality
+Verify production builds
+Accelerate repetitive engineering tasks
 
-- Interface refinement
-- Visual hierarchy
-- Interaction polish
-- Login experience redesign
-- Branding direction
-- UX copy
-- Documentation
+Development was highly iterative.
 
-The human creator remained responsible for every major product, engineering, and design decision. GPT-5.6 and Codex accelerated exploration, implementation, and iteration while the overall product direction remained intentionally human-led.
+Many implementations were refined, replaced, or even rolled back after evaluation because they didn't align with the experience I wanted Anchor to provide.
+
+Instead of accepting every generated solution, I treated Codex as an experienced engineering collaborator whose work I continuously reviewed, modified, and integrated into the project.
+
+How I collaborated with ChatGPT
+
+While Codex accelerated engineering, ChatGPT became a product and design collaborator.
+
+It helped me think through:
+
+Product philosophy
+UX writing
+Information architecture
+Product positioning
+Feature prioritization
+Design critique
+Documentation
+README writing
+Demo narration
+Hackathon submission preparation
+
+Many conversations were not about writing code at all—they were about making better product decisions.
+
+Human decisions
+
+Every major product decision remained mine.
+
+This included:
+
+Defining Anchor's philosophy
+Simplifying features
+Rejecting implementations that added unnecessary complexity
+Choosing interaction patterns
+Reviewing every significant implementation
+Deciding what shipped in the MVP
+
+OpenAI tools accelerated exploration, engineering, iteration, and communication.
+
+The vision, product direction, and final implementation remained intentionally human-led.
 
 ---
 
@@ -190,7 +256,7 @@ The Submission Period focused on refining both the product itself and the develo
 - Wrote project documentation
 - Prepared demo assets and hackathon submission
 
-Development throughout this period is reflected in the repository history, dated commits, deployment history, and extensive GPT-5.6 and Codex collaboration sessions.
+The repository history reflects multiple iterations, including experiments that were intentionally redesigned or reverted as the product philosophy became clearer.
 
 ---
 
@@ -248,6 +314,12 @@ Run locally
 npm run dev
 ```
 
+### Authentication
+
+Google Authentication must be configured in your Supabase project before running the application.
+
+Create a Supabase project, enable Google OAuth, and add the required OAuth credentials before signing in.
+
 ---
 
 # Roadmap
@@ -285,6 +357,22 @@ Special thanks to:
 - Vercel
 
 for making rapid iteration possible throughout development.
+
+---
+
+## Demo Notes
+
+The current MVP uses Google Authentication.
+
+To explore Anchor:
+
+1. Sign in with your Google account.
+2. Create a new Anchor.
+3. Choose a category.
+4. Save your reflection.
+5. Return to your wall to revisit previously saved Anchors.
+
+The current version focuses on the core experience of capturing and returning to meaningful thoughts. Future iterations will expand on this foundation.
 
 ---
 
